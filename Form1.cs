@@ -1,11 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Timer
@@ -14,7 +10,7 @@ namespace Timer
     {
         readonly List<string> Dane = new List<string> { "Second", "Minute", "Hour", "Day" };
         Dictionary<string, uint> TimeToSec = new Dictionary<string, uint>() { { "Second", 1 }, { "Minute", 60 }, { "Hour", 3600 }, { "Day", 86400 } };
-        List<Timer> LT = new List<Timer>();
+        List<MyTimer> LT = new List<MyTimer>();
         uint TimeSec = 0;
 
         public Form1()
@@ -25,10 +21,26 @@ namespace Timer
 
         private void Button1_Click(object sender, EventArgs e)
         {
-            Timer T = new Timer();
-            T.Time = TimeSec;
-            T.Ticking();
-            LT.Add(T);
+            if (TimeSec > 0)
+            {
+                MyTimer T = new MyTimer();
+                T.Time = TimeSec;
+
+                LT.Add(T);
+
+                T.Start();
+
+                int i = 0;
+                LT = LT.AsEnumerable().OrderBy(x => x.Time).ToList();
+                foreach (MyTimer t in LT)
+                {
+                    t.L.Location = new Point(0, i * 20+5);
+                    t.B.Location = new Point(150, i * 20);
+                    panel1.Controls.Add(t.L);
+                    panel1.Controls.Add(t.B);
+                    i++;
+                }
+            }
         }
 
         private void ComboBox1_TextChanged(object sender, EventArgs e)
@@ -43,7 +55,9 @@ namespace Timer
                     TimeSec += (uint)((NumericUpDown)Controls["NumericUpDown" + Index]).Value * TimeToSec[((ComboBox)C).Text];
                 }
             }
-            label1.Text = TimeSec.ToString() + " sec";
+            var ts = TimeSpan.FromSeconds(TimeSec);
+            label1.Text = String.Format("{0} d{1,5} h{2,5} m{3,5} s", ts.Days, ts.Hours, ts.Minutes, ts.Seconds);
+            //label1.Text = TimeSec.ToString() + " sec";
         }
 
         private void ComboBox1_DropDown(object sender, EventArgs e)
@@ -61,14 +75,53 @@ namespace Timer
         }
     }
 
-    class Timer
-    {
-        public bool Ring { get; private set; }
-        public uint Time { get; set; }
 
-        public void Ticking()
+    class MyTimer : ITimer
+    {
+        private uint time;
+
+        public bool Ring { get; private set; }
+
+        public System.Windows.Forms.Timer T = new System.Windows.Forms.Timer { Interval = 100 };
+        public Label L = new Label() { Height = 15, Width = 150 };
+        public Button B = new Button() { Height = 20, Width = 50, Text = "Reset" };
+
+        public uint Time
         {
-            Time = Time--;
+            get => time; set
+            {
+                {
+                    time = value;
+                    var ts = TimeSpan.FromSeconds(Time);
+                    L.Text = String.Format("{0} d{1,5} h{2,5} m{3,5} s", ts.Days, ts.Hours, ts.Minutes, ts.Seconds);
+                }
+            }
+        }
+
+        public void Start()
+        {
+            T.Tick += new EventHandler(Timer_Tick);
+            B.Click += new EventHandler(Button_Click);
+            T.Start();
+        }
+
+        private void Button_Click(object sender, EventArgs e)
+        {
+            Time = 0;
+        }
+
+        private void Timer_Tick(object source, EventArgs e)
+        {
+            if (Time > 0)
+            { Time--; }
+            else
+            { T.Stop(); }
         }
     }
+
+    interface ITimer
+    {
+        void Start();
+    }
 }
+
